@@ -1,23 +1,37 @@
-console.log('content js file loaded');
-// Check if the DOM is already loaded
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM fully loaded and parsed');
-    // Your code here
+const rules = [
+  {
+    sourceField: 'businessName',
+    targetFields: ['riskName', 'insuredName'],
+    condition: (value) => value !== '',
+    transform: (value) => value.toUpperCase()
+  },
+  {
+    sourceField: 'address',
+    targetFields: ['locationAddress', 'insuredAddress'],
+    condition: (value) => value !== '',
+    transform: (value) => value.trim()
+  },
+  // Add more rules as needed
+];
+
+function applyRulesEngine(data, rules) {
+  let mappedData = {};
+
+  rules.forEach(rule => {
+    if (data.hasOwnProperty(rule.sourceField)) {
+      const value = data[rule.sourceField];
+      if (rule.condition(value)) {
+        const transformedValue = rule.transform(value);
+        rule.targetFields.forEach(targetField => {
+          mappedData[targetField] = transformedValue;
+        });
+      }
+    }
   });
-} else {
-  console.log('DOM already loaded');
-  // Your code here
 
+  return mappedData;
 }
 
-function onFormSubmit(event){
-  console.log('from onFormSubmit meyjod');
-  let formData;
-  formData=captureFormData();
-  console.log('calling sendmessagetobackground');
-  sendMessageToBackground(formData);
-}
 
 function captureFormData() {
   let formData = {};
@@ -26,13 +40,6 @@ function captureFormData() {
     formData[input.name] = input.value;
   });
   console.log(`saved ${JSON.stringify(formData)} from content js captureFormData func`);
-  // const {res} = await chrome.runtime.sendMessage({ action: "saveFormData", data: formData });
-  // console.log(res);
-  return formData;
-}
-
-function sendMessageToBackground(formData){
-  console.log('inside sendmessagebackground');
   if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
     chrome.runtime.sendMessage({action:'saveFormData',data:formData},(response)=>{
       console.log('Data saved to local store ',response);
@@ -42,29 +49,29 @@ function sendMessageToBackground(formData){
   }
 }
 
+
+
 function fillFormData(data) {
   console.log('fillFormData is called');
   console.log(data);
+
   if (data) {
-    // const inputs = document.querySelectorAll('input, textarea, select');
-    // inputs.forEach(input => {
-    //   if (data[input.name]) {
-    //     input.value = data[input.name];
-    //   }
-    // 
-    console.log(data.data.firstName);
-    document.getElementById('firstName').value = data.data.firstName || 'na';
-    document.getElementById('lastName').value = data.data.lastName || 'na';
-    document.getElementById('email').value = data.data.email || 'na';
-    };
+    const mappedData = applyRulesEngine(data, rules);
+    const inputs = document.querySelectorAll('input, textarea, select');
+    inputs.forEach(input => {
+      if (mappedData.hasOwnProperty(input.name)) {
+        input.value = mappedData[input.name];
+      }
+    });
   }
+}
 
 
   const submitButton = document.getElementById('capture');
   
   if (submitButton) {
     console.log(' capture is present ');
-    submitButton.addEventListener('click', onFormSubmit);
+    submitButton.addEventListener('click', captureFormData);
   }
 
 
